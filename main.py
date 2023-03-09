@@ -1,22 +1,110 @@
-from dash import Dash, dcc, html, Input, Output
-import plotly.graph_objects as go
-import plotly.express as px
+#importing modules 
 import dash
+from dash import dcc,html,dcc,html,Input,Output,Dash,State
 from flask import Flask
 import dash_bootstrap_components as dbc
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import dash
+import plotly.graph_objs as go
+import pandas as pd
+import base64
+import json
 import ast
-
 # App initialization
+
+external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+
 server=Flask(__name__)
-app = dash.Dash(__name__,server =server,external_stylesheets=[dbc.themes.BOOTSTRAP,dbc.icons.BOOTSTRAP])
+app = dash.Dash(__name__,server =server,external_stylesheets=[dbc.themes.BOOTSTRAP,dbc.icons.BOOTSTRAP,external_stylesheets])
 colors = {
     'background': '#111111',
     'text': '#7FDBFF'
-}
 
+}
 # Loading the Data from a file
+# global data
 data=pd.read_json("/home/aayush/Documents/Otermans_Institute/data_analysis_task/data/teddyai-123ab-default-rtdb-export(2).json")[2:][['IDC']].transpose()
+
+#Uploading Data
+def parse_contents(contents, filename):
+    content_type, content_string = contents.split(',')
+    decoded = base64.b64decode(content_string)
+
+    try:
+        if 'json' in filename:
+            # Assume that the user uploaded a JSON file
+            global data
+            data_json = json.loads(decoded)
+            data = pd.read_json(json.dumps(data_json))[2:][['IDC']].transpose()
+            # print(data)
+            global user_data
+            global timeSpent_total
+            user_data=process_data(data.T)
+
+            timeSpent_total=pd.DataFrame(user_data.iloc[:,7:14].sum())
+
+            # Process the data as needed
+            return html.Div([
+                            html.Div([
+                    html.H1('Dashboard',style={"text-align":"center"}),
+                ]),
+                
+                html.Div([
+                    html.H5('Total Time Spent according to Date and Time',style={"text-align":"center","margin":"20px"}),
+                    dcc.Graph(figure=fig_bar_timeSpent_DateTime),
+                ]),
+                html.Div([
+                    html.H5('Total Time Spent According to the users',style={"text-align":"center","margin":"20px"}),
+                    dcc.Graph(figure=fig_bar_timeSpent),
+                ]),
+                    html.Div([
+                    html.H5('Total Time Spent by Users on total sections',style={"text-align":"center","margin":"20px"}),
+                    totalTime_pie,
+                ]),
+                    html.Div([
+                        html.P("User ID:",style={'margin':'10px'}),
+                    dcc.Dropdown(id='names',
+                        options=data.columns,
+                        value=data.columns[0], clearable=False),
+                    html.P("Time and Date:",style={'margin':'10px'}),
+                    dcc.Dropdown(id='values',
+                        options=[],
+                        value="",
+                        clearable=False
+                    ),]),
+                html.Div([
+                    html.Div([
+                    html.P("User's Personal Records",style={"text-align":"center","font-weight":"bold","margin-top":'20px'}),
+                    piePR,
+                    ],style={'padding': 10, 'flex': 1}),
+                    html.Div([
+                    html.P("User's Time Spent Record",style={"text-align":"center","font-weight":"bold","margin-top":'20px'}),
+                    pieTS,
+                    ],style={'padding': 10, 'flex': 1}),
+                    ],style={'display': 'flex', 'flex-direction': 'row'}),
+            ])
+        else:
+            return html.Div([
+                'Invalid File Type'
+            ])
+    except Exception as e:
+        print(e)
+        return html.Div([
+            'There was an error processing this file.'
+        ])
+
+@app.callback(Output('output-data-upload', 'children'),
+              Input('upload-data', 'contents'),
+              State('upload-data', 'filename'))
+def update_output(contents, filename):
+    if contents is not None:
+        return parse_contents(contents, filename)
+    else:
+        return None
+
+
 
 # Data Preprocessing and converting into normalized data_frame
 def time_process(data_df):
@@ -123,43 +211,36 @@ totalTime_pie=dcc.Graph(figure=fig_totalTime)
 
 df1= user_data.groupby('userId').sum().apply(lambda x:x)
 fig_bar_timeSpent=px.bar(df1, x=df1.index, y="timeSpent_total")
+
+fig_bar_timeSpent_DateTime=px.bar(user_data, x='Date', y="timeSpent_total",color='Time')
 app.layout = html.Div([
     html.Div([
-        html.H1('Dashboard',style={"text-align":"center"}),
-    ]),
-    html.Div([
-        html.H5('Total Time Spent According to the users',style={"text-align":"center","margin":"20px"}),
-        dcc.Graph(figure=fig_bar_timeSpent),
-    ]),
-        html.Div([
-        html.H5('Total Time Spent by Users on total sections',style={"text-align":"center","margin":"20px"}),
-        totalTime_pie,
-    ]),
-        html.Div([
-            html.P("User ID:",style={'margin':'10px'}),
-        dcc.Dropdown(id='names',
-            options=data.columns,
-            value=data.columns[0], clearable=False),
-        html.P("Time and Date:",style={'margin':'10px'}),
-        dcc.Dropdown(id='values',
-            options=[],
-            value="",
-            clearable=False
-        ),]),
-    html.Div([
-        html.Div([
-        html.P("User's Personal Records",style={"text-align":"center","font-weight":"bold","margin-top":'20px'}),
-        piePR,
-        ],style={'padding': 10, 'flex': 1}),
-        html.Div([
-        html.P("User's Time Spent Record",style={"text-align":"center","font-weight":"bold","margin-top":'20px'}),
-        pieTS,
-        ],style={'padding': 10, 'flex': 1}),
-        ],style={'display': 'flex', 'flex-direction': 'row'}),
-        
+    dcc.Upload(
+        id='upload-data',
+        children=html.Div([
+            'Drag and Drop or ',
+            html.A('Select Files')
+        ]),
+        style={
+            'width': '100%',
+            'height': '60px',
+            'lineHeight': '60px',
+            'borderWidth': '1px',
+            'borderStyle': 'dashed',
+            'borderRadius': '5px',
+            'textAlign': 'center',
+            'margin': '10px'
+        },
+        # Allow multiple files to be uploaded
+        multiple=False
+    ),
+    html.Div(id='output-data-upload'),
+]),    
     
     
 ],style={'margin':'20px','padding':'20px'})
+
+
 
 if __name__ == '__main__':
     app.run_server(debug=True)
