@@ -59,10 +59,16 @@ def parse_contents(contents, filename):
                     html.H5('Total Time Spent According to the users',style={"text-align":"center","margin":"20px"}),
                     dcc.Graph(figure=fig_bar_timeSpent),
                 ]),
+                html.Div([
                     html.Div([
                     html.H5('Total Time Spent by Users on total sections',style={"text-align":"center","margin":"20px"}),
+                    barchart_component,
+                ],style={'padding': 10, 'flex': 1}),
+                html.Div([
+                    html.H5('Total Time Spent by Users on total sections',style={"text-align":"center","margin":"20px"}),
                     totalTime_pie,
-                ]),
+                ],style={'padding': 10, 'flex': 1}),
+            ],style={'display': 'flex', 'flex-direction': 'row'}),
                     html.Div([
                         html.P("User ID:",style={'margin':'10px'}),
                     dcc.Dropdown(id='names',
@@ -205,6 +211,30 @@ def generate_chart(names, values):
     fig1.update_traces(hoverinfo='label+percent', textinfo='value', textfont_size=20,
                   marker=dict(colors=colors, line=dict(color='#000000', width=2)))
     return fig1
+
+# Component 1 Barchart
+barchart_component=html.Div([
+    html.P("Select the data according to users: ",style={'margin':'40px'}),
+    dcc.Dropdown(
+        id="dropdown",
+        options=list(user_data.Date.unique()),
+        value=list(user_data.Date.unique())[0],
+        clearable=False,
+        style={"text-align":"center",'width':'200px'}
+    ),
+    dcc.Graph(id="graph_bar"),
+])
+
+@app.callback(
+    Output("graph_bar", "figure"), 
+    Input("dropdown", "value"))
+
+def update_bar_chart(name):
+    # mask=df['name']==name
+    fig = px.bar(user_data[user_data.Date==name], x="Time", y="timeSpent_total", 
+                 color="name")
+    return fig
+
 
 fig_totalTime = px.pie(timeSpent_total, values=timeSpent_total[0], names=list(timeSpent_total.index), color_discrete_sequence=px.colors.sequential.RdBu)
 totalTime_pie=dcc.Graph(figure=fig_totalTime)
