@@ -12,6 +12,8 @@ import pandas as pd
 import base64
 import json
 import ast
+from datetime import datetime
+import re
 # App initialization
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
@@ -52,16 +54,17 @@ def parse_contents(contents, filename):
                 ]),
                 
                 html.Div([
-                    html.H5('Total Time Spent according to Date and Time',style={"text-align":"center","margin":"20px"}),
+                    html.H5('Time Spent According to date:',style={"text-align":"center","margin":"20px"}),
+                    html.P('Color represents user and size represents total marks by combining personal records values'),
                     dcc.Graph(figure=fig_bar_timeSpent_DateTime),
                 ]),
                 html.Div([
-                    html.H5('Total Time Spent According to the users',style={"text-align":"center","margin":"20px"}),
+                    html.H5('Total Time( in seconds) Spent According to the users',style={"text-align":"center","margin":"20px"}),
                     dcc.Graph(figure=fig_bar_timeSpent),
                 ]),
                 html.Div([
                     html.Div([
-                    html.H5('Total Time Spent by Users on total sections',style={"text-align":"center","margin":"20px"}),
+                    html.H5('Total Time Spent(in seconds) by Users on total sections',style={"text-align":"center","margin":"20px"}),
                     barchart_component,
                 ],style={'padding': 10, 'flex': 1}),
                 html.Div([
@@ -164,7 +167,24 @@ def process_data(data_df):
     user_data.insert(2,'Date', date)
     user_data.insert(3,'Time', time)
     user_data.drop('dateTime',axis='columns',inplace=True)
+    user_data.Date = user_data.Date.apply(date_converter)
     return user_data
+
+def date_converter(obj):
+    x=obj.replace('/','-')
+    
+    try:
+        date_regex = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+        x_match = date_regex.match(x)
+        if x_match:
+            dt = datetime.strptime(x, '%Y-%m-%d')
+        else:
+            dt = datetime.strptime(x, '%d-%m-%Y')
+    except ValueError:
+        dt = datetime.strptime(x, '%m-%d-%Y')
+        
+    # Append the converted date to the output list
+    return dt.strftime('%d-%m-%Y')
 
 user_data=process_data(data.T)
 
@@ -242,7 +262,9 @@ totalTime_pie=dcc.Graph(figure=fig_totalTime)
 df1= user_data.groupby('userId').sum().apply(lambda x:x)
 fig_bar_timeSpent=px.bar(df1, x=df1.index, y="timeSpent_total")
 
-fig_bar_timeSpent_DateTime=px.bar(user_data, x='Date', y="timeSpent_total",color='Time')
+fig_bar_timeSpent_DateTime=px.scatter(user_data.sort_values('Date',ascending=False), x="Date", y=user_data.timeSpent_timeLesson,
+                                      size=user_data.personalRecords_CC+user_data.personalRecords_EA+user_data.personalRecords_TCA+user_data.personalRecords_TQA,
+           color='name')
 app.layout = html.Div([
     html.Div([
     dcc.Upload(
