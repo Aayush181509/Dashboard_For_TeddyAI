@@ -265,6 +265,10 @@ fig_bar_timeSpent=px.bar(df1, x=df1.index, y="timeSpent_total")
 fig_bar_timeSpent_DateTime=px.scatter(user_data.sort_values('Date',ascending=False), x="Date", y=user_data.timeSpent_timeLesson,
                                       size=user_data.personalRecords_CC+user_data.personalRecords_EA+user_data.personalRecords_TCA+user_data.personalRecords_TQA,
            color='name')
+fig_bar_timeSpent_DateTime.update_layout(
+    xaxis_title='Date',
+    yaxis_title='Total Time spent (seconds)'
+)
 app.layout = html.Div([
     html.Div([
     dcc.Upload(
